@@ -355,12 +355,42 @@ def seed_route_patterns(db):
     db.commit()
 
 
+def seed_advisories_from_airports(db):
+    airports = db.query(models.Airport).all()
+    now = datetime.now(timezone.utc)
+
+    for airport in airports:
+        title = f"Status update for {airport.icao}"
+        exists = db.query(models.Advisory).filter(
+            models.Advisory.title == title,
+            models.Advisory.source_url == airport.status_source,
+        ).first()
+
+        if exists:
+            continue
+
+        db.add(
+            models.Advisory(
+                source_type=models.AdvisorySourceType.AIRPORT,
+                source_name="SafeCorridor Seed Data",
+                source_url=airport.status_source,
+                title=title,
+                summary=airport.status_reason or f"{airport.name} currently marked as {airport.status.value}.",
+                airports_icao=[airport.icao],
+                created_at=now,
+            )
+        )
+
+    db.commit()
+
+
 def main():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         seed_airports(db)
         seed_route_patterns(db)
+        seed_advisories_from_airports(db)
         print("Database seeded successfully.")
     except Exception as e:
         print(f"Error seeding database: {e}")
