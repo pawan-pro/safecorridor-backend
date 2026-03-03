@@ -66,7 +66,8 @@ def ingest_airports_from_file(path: str = "data/perplexity_airports.json"):
             # Optional Advisory
             # Since the requirement says "Optionally create an Advisory", we'll create it.
             # Avoid duplicating identical advisories if run multiple times.
-            advisory_title = f"Update for {icao} from offline ingestion"
+            airport_display = airport.name or icao
+            advisory_title = f"Status update for {airport_display} ({icao})"
             source_url = item.get("status_source_url")
             summary = item.get("status_reason")
             
