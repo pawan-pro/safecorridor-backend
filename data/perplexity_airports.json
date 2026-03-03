@@ -1,0 +1,74 @@
+{
+  "airports": [
+    {
+      "icao": "OMDB",
+      "status": "CLOSED",
+      "status_reason": "Dubai Airports and major carriers state all flights at Dubai International (DXB) remain suspended due to UAE airspace closure as of March 2, 2026; no normal passenger operations.",
+      "status_source_url": "https://economictimes.com/nri/latest-updates/when-will-dubai-airports-reopen-operations-at-worlds-busiest-international-hub-continue-to-remain-suspended/articleshow/107254412.cms",
+      "status_source_name": "The Economic Times / Dubai Airports"
+    },
+    {
+      "icao": "OMDW",
+      "status": "CLOSED",
+      "status_reason": "Dubai Airports confirms that flight operations at Dubai World Central (DWC) are halted as part of the wider UAE airspace closure; commercial traffic effectively suspended.",
+      "status_source_url": "https://economictimes.com/nri/latest-updates/dubai-abu-dhabi-airports-extend-flight-suspensions-due-to-ongoing-airspace-closures/articleshow/107255001.cms",
+      "status_source_name": "The Economic Times / Dubai Airports"
+    },
+    {
+      "icao": "OMAA",
+      "status": "RESTRICTED",
+      "status_reason": "Etihad had suspended all flights to and from Abu Dhabi until at least March 3, but reports on March 2 indicate Zayed International is beginning to resume some Etihad operations on limited routes.",
+      "status_source_url": "https://www.euronews.com/2026/03/02/iran-war-etihad-airways-resumes-some-flights-from-abu-dhabi",
+      "status_source_name": "Euronews"
+    },
+    {
+      "icao": "OMSJ",
+      "status": "CLOSED",
+      "status_reason": "Sharjah Airport Authority has announced suspension of all flight operations at Sharjah International Airport until further notice amid regional airspace closures.",
+      "status_source_url": "https://indianexpress.com/article/world/airspace-closures-middle-east-airport-shutdowns-flight-cancellations-march-3-iran-israel-war-9216434/",
+      "status_source_name": "The Indian Express / Sharjah Airport Authority"
+    },
+    {
+      "icao": "OTHH",
+      "status": "CLOSED",
+      "status_reason": "Qatar Airways and Hamad International Airport state that flight operations remain temporarily suspended due to closure of Qatari airspace, with services to resume only after authority approval.",
+      "status_source_url": "https://www.qatarairways.com/press-releases/en-WW/262673-qatar-airways-service-update-02-march-2026/",
+      "status_source_name": "Qatar Airways / Hamad International Airport"
+    },
+    {
+      "icao": "OOMS",
+      "status": "RESTRICTED",
+      "status_reason": "Muscat International Airport has not been formally closed but faces partial operational restrictions, with multiple cancellations and reroutes due to regional airspace issues.",
+      "status_source_url": "https://sundayguardianlive.com/world/is-muscat-international-airport-mct-in-oman-open-or-closed-check-flight-status-cancellations-and-diversions-amid-middle-east-crisis",
+      "status_source_name": "The Sunday Guardian / aviation and airline notices"
+    },
+    {
+      "icao": "VIDP",
+      "status": "RESTRICTED",
+      "status_reason": "Delhi airport remains operational but with heavy disruption; over 100 flights (mainly Middle East and some westbound long-haul) cancelled while other domestic and international services continue.",
+      "status_source_url": "https://indianexpress.com/article/cities/delhi/us-israel-iran-conflict-60-flight-departures-and-40-arrivals-cancelled-at-delhi-airport-over-airspace-curbs-9215961/",
+      "status_source_name": "The Indian Express / Delhi airport officials"
+    },
+    {
+      "icao": "VABB",
+      "status": "RESTRICTED",
+      "status_reason": "Mumbai airport is open but affected by the Middle East crisis; around 125 flights were reportedly cancelled while many other services continue to operate with reroutes and delays.",
+      "status_source_url": "https://www.aninews.in/news/national/general-news/100-flights-at-delhi-airport-125-at-mumbai-airport-cancelled-as-middle-east-plunges-into-conflict20260301221554",
+      "status_source_name": "ANI News / Indian aviation authorities"
+    },
+    {
+      "icao": "LIRF",
+      "status": "OPEN",
+      "status_reason": "Rome Fiumicino remains operational with only a small share of flights cancelled or rerouted due to Middle East airspace closure, representing roughly 6% of daily movements.",
+      "status_source_url": "https://www.visahq.com/news/2026-03-01/it/middle-east-airspace-closure-grounds-dozens-of-italian-flights-and-disrupts-fiumicino-operations/",
+      "status_source_name": "VisaHQ / Aeroporti di Roma reporting"
+    },
+    {
+      "icao": "EDDM",
+      "status": "OPEN",
+      "status_reason": "Munich Airport has not issued any special closure or large-scale suspension related to the Middle East situation; operations continue normally aside from prior weather-related disruptions.",
+      "status_source_url": "https://www.munich-airport.com/press-munich-airport-and-lufthansa-optimize-operations-and-reliability-38696240",
+      "status_source_name": "Munich Airport"
+    }
+  ]
+}
