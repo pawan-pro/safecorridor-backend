@@ -1,19 +1,33 @@
 from pydantic import BaseModel, UUID4, Field, HttpUrl
 from typing import List, Optional, Any
 from datetime import datetime
-from .models import StatusEnum, RouteStatusEnum, AdvisorySourceType
+from .models import (
+    StatusEnum,
+    AirspaceStatusEnum,
+    AirlineOperationsEnum,
+    RouteStatusEnum,
+    AdvisorySourceType,
+)
 
 class AirportBase(BaseModel):
     icao: str
     iata: Optional[str] = None
+    airport_name: Optional[str] = None
     name: Optional[str] = None
     city: Optional[str] = None
     country: Optional[str] = None
     is_hub: bool = False
+    display_status: StatusEnum = StatusEnum.UNKNOWN
     status: StatusEnum = StatusEnum.UNKNOWN
+    airport_status: StatusEnum = StatusEnum.UNKNOWN
+    airspace_status: AirspaceStatusEnum = AirspaceStatusEnum.UNKNOWN
+    airline_operations: AirlineOperationsEnum = AirlineOperationsEnum.UNKNOWN
     status_reason: Optional[str] = None
     status_source: Optional[str] = None
+    status_source_url: Optional[str] = None
+    status_source_name: Optional[str] = None
     status_last_updated: Optional[datetime] = None
+    last_verified_utc: Optional[datetime] = None
 
 class AirportResponse(AirportBase):
     id: UUID4

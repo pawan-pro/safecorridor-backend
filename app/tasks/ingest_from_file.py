@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 
 from app.database import SessionLocal
 from app import models
+from app.db_migrations import ensure_airport_columns
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -148,6 +149,7 @@ def ingest_airports_from_file(path: str = "data/perplexity_airports.json"):
         logger.warning(f"No 'airports' array found in {path}")
         return
 
+    ensure_airport_columns()
     db = SessionLocal()
     try:
         logger.info(f"Starting ingestion of {len(airports_data)} airports from {path}...")
@@ -158,6 +160,42 @@ def ingest_airports_from_file(path: str = "data/perplexity_airports.json"):
             "CLOSED": models.StatusEnum.CLOSED,
             "UNKNOWN": models.StatusEnum.UNKNOWN,
         }
+        airspace_status_allowed = {s.value for s in models.AirspaceStatusEnum}
+        airline_ops_allowed = {s.value for s in models.AirlineOperationsEnum}
+
+        def normalize_airport_status(item: dict) -> str:
+            value = (item.get("airport_status") or item.get("status") or "UNKNOWN").upper()
+            return value if value in status_map else models.StatusEnum.UNKNOWN.value
+
+        def normalize_airspace_status(item: dict, airport_status_value: str) -> str:
+            value = (item.get("airspace_status") or "").upper()
+            if value in airspace_status_allowed:
+                return value
+            # Backward compatible inference when source only sends a single status
+            if airport_status_value == models.StatusEnum.CLOSED.value:
+                return models.AirspaceStatusEnum.CLOSED.value
+            if airport_status_value == models.StatusEnum.RESTRICTED.value:
+                return models.AirspaceStatusEnum.RESTRICTED.value
+            if airport_status_value == models.StatusEnum.OPEN.value:
+                return models.AirspaceStatusEnum.OPEN.value
+            return models.AirspaceStatusEnum.UNKNOWN.value
+
+        def normalize_airline_ops(item: dict, airport_status_value: str, airspace_status_value: str) -> str:
+            value = (item.get("airline_operations") or "").upper()
+            if value in airline_ops_allowed:
+                return value
+            # Inference rules for partial sources
+            if airspace_status_value == models.AirspaceStatusEnum.CLOSED.value:
+                return models.AirlineOperationsEnum.SUSPENDED.value
+            if airspace_status_value in {models.AirspaceStatusEnum.RESTRICTED.value, models.AirspaceStatusEnum.PARTIAL.value}:
+                return models.AirlineOperationsEnum.LIMITED.value
+            if airport_status_value == models.StatusEnum.CLOSED.value:
+                return models.AirlineOperationsEnum.SUSPENDED.value
+            if airport_status_value == models.StatusEnum.RESTRICTED.value:
+                return models.AirlineOperationsEnum.LIMITED.value
+            if airport_status_value == models.StatusEnum.OPEN.value and airspace_status_value == models.AirspaceStatusEnum.OPEN.value:
+                return models.AirlineOperationsEnum.NORMAL.value
+            return models.AirlineOperationsEnum.UNKNOWN.value
 
         for item in airports_data:
             icao = item.get("icao")
@@ -178,11 +216,26 @@ def ingest_airports_from_file(path: str = "data/perplexity_airports.json"):
                 db.add(airport)
                 logger.info(f"Airport {icao} not found in DB, created from ingestion metadata.")
 
-            api_status = item.get("status", "UNKNOWN").upper()
-            airport.status = status_map.get(api_status, models.StatusEnum.UNKNOWN)
+            airport_status_value = normalize_airport_status(item)
+            airspace_status_value = normalize_airspace_status(item, airport_status_value)
+            airline_ops_value = normalize_airline_ops(item, airport_status_value, airspace_status_value)
+
+            airport.status = status_map.get(airport_status_value, models.StatusEnum.UNKNOWN)
+            airport.airport_status = airport_status_value
+            airport.airspace_status = airspace_status_value
+            airport.airline_operations = airline_ops_value
             airport.status_reason = item.get("status_reason")
             airport.status_source = item.get("status_source_url")
+            airport.status_source_name = item.get("status_source_name")
             airport.status_last_updated = datetime.now(timezone.utc)
+            last_verified_raw = item.get("last_verified_utc")
+            if isinstance(last_verified_raw, str):
+                try:
+                    airport.last_verified_utc = datetime.fromisoformat(last_verified_raw.replace("Z", "+00:00"))
+                except ValueError:
+                    airport.last_verified_utc = datetime.now(timezone.utc)
+            else:
+                airport.last_verified_utc = datetime.now(timezone.utc)
             
             # Optional Advisory
             # Since the requirement says "Optionally create an Advisory", we'll create it.
@@ -206,12 +259,22 @@ def ingest_airports_from_file(path: str = "data/perplexity_airports.json"):
                     title=advisory_title,
                     summary=summary,
                     airports_icao=[icao],
+                    raw_payload={
+                        "airport_status": airport_status_value,
+                        "airspace_status": airspace_status_value,
+                        "airline_operations": airline_ops_value,
+                    },
                 )
                 db.add(advisory)
             else:
                 existing_advisory.source_type = source_type
                 existing_advisory.source_name = source_name
                 existing_advisory.source_url = source_url
+                existing_advisory.raw_payload = {
+                    "airport_status": airport_status_value,
+                    "airspace_status": airspace_status_value,
+                    "airline_operations": airline_ops_value,
+                }
 
         if official_updates and official_updates.get("summary"):
             last_updated_raw = official_updates.get("last_updated_utc")

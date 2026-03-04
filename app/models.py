@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Boolean, Enum, Text, DateTime, JSON, ForeignKey
+from sqlalchemy import Column, String, Boolean, Enum, Text, DateTime, JSON
 from .database import Base
 from datetime import datetime, timezone
 import enum
@@ -8,6 +8,22 @@ class StatusEnum(str, enum.Enum):
     OPEN = "OPEN"
     RESTRICTED = "RESTRICTED"
     CLOSED = "CLOSED"
+    UNKNOWN = "UNKNOWN"
+
+
+class AirspaceStatusEnum(str, enum.Enum):
+    OPEN = "OPEN"
+    RESTRICTED = "RESTRICTED"
+    PARTIAL = "PARTIAL"
+    CLOSED = "CLOSED"
+    UNKNOWN = "UNKNOWN"
+
+
+class AirlineOperationsEnum(str, enum.Enum):
+    NORMAL = "NORMAL"
+    LIMITED = "LIMITED"
+    SUSPENDED = "SUSPENDED"
+    EVACUATION_ONLY = "EVACUATION_ONLY"
     UNKNOWN = "UNKNOWN"
 
 class RouteStatusEnum(str, enum.Enum):
@@ -33,9 +49,34 @@ class Airport(Base):
     country = Column(String)
     is_hub = Column(Boolean, default=False)
     status = Column(Enum(StatusEnum), default=StatusEnum.UNKNOWN)
+    airport_status = Column(String, default=StatusEnum.UNKNOWN.value, nullable=False)
+    airspace_status = Column(String, default=AirspaceStatusEnum.UNKNOWN.value, nullable=False)
+    airline_operations = Column(String, default=AirlineOperationsEnum.UNKNOWN.value, nullable=False)
     status_reason = Column(Text)
     status_source = Column(String)
+    status_source_name = Column(String)
     status_last_updated = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    last_verified_utc = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    @property
+    def display_status(self) -> str:
+        value = (self.airport_status or "").upper()
+        if value in {StatusEnum.CLOSED.value, StatusEnum.RESTRICTED.value, StatusEnum.OPEN.value}:
+            return value
+        if self.status:
+            try:
+                return self.status.value
+            except Exception:
+                pass
+        return StatusEnum.UNKNOWN.value
+
+    @property
+    def status_source_url(self) -> str | None:
+        return self.status_source
+
+    @property
+    def airport_name(self) -> str | None:
+        return self.name
 
 class AirspaceRegion(Base):
     __tablename__ = "airspace_regions"

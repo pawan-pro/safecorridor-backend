@@ -19,11 +19,18 @@ def _airport_status_rank(status: models.StatusEnum) -> int:
     return rank.get(status, 3)
 
 
+def _display_status_enum(airport: models.Airport) -> models.StatusEnum:
+    try:
+        return models.StatusEnum((airport.display_status or "UNKNOWN").upper())
+    except Exception:
+        return models.StatusEnum.UNKNOWN
+
+
 def _derive_route_status(via_airports: List[models.Airport], default_status: models.RouteStatusEnum) -> models.RouteStatusEnum:
     if not via_airports:
         return default_status
 
-    statuses = {a.status for a in via_airports}
+    statuses = {_display_status_enum(a) for a in via_airports}
     if models.StatusEnum.CLOSED in statuses:
         return models.RouteStatusEnum.UNAVAILABLE
     if models.StatusEnum.UNKNOWN in statuses:
@@ -48,7 +55,7 @@ def _build_route(
             .filter(models.Airport.icao.in_(via_icaos))
             .all()
         )
-        via_airports = sorted(via_airports, key=lambda a: _airport_status_rank(a.status))
+        via_airports = sorted(via_airports, key=lambda a: _airport_status_rank(_display_status_enum(a)))
 
     overall_status = _derive_route_status(via_airports, default_status)
     base_status = default_status if default_status == models.RouteStatusEnum.UNAVAILABLE else overall_status
@@ -76,7 +83,11 @@ def get_routes(
     airports = {a.icao: a for a in db.query(models.Airport).all()}
 
     def has_operational(*icaos: str):
-        return [icao for icao in icaos if icao in airports and airports[icao].status in {models.StatusEnum.OPEN, models.StatusEnum.RESTRICTED}]
+        return [
+            icao
+            for icao in icaos
+            if icao in airports and _display_status_enum(airports[icao]) in {models.StatusEnum.OPEN, models.StatusEnum.RESTRICTED}
+        ]
 
     routes: List[schemas.RoutePatternResponse] = []
 

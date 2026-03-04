@@ -3,8 +3,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine
 from .routers import airports, routes, advisories, admin, official_updates
+from .db_migrations import ensure_airport_columns
 
 Base.metadata.create_all(bind=engine)
+ensure_airport_columns()
 
 app = FastAPI(
     title="SafeCorridor API",
