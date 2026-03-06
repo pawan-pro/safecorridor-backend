@@ -9,18 +9,77 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-AVIATIONSTACK_API_KEY = os.getenv("AVIATIONSTACK_API_KEY")
 AVIATIONSTACK_BASE_URL = os.getenv("AVIATIONSTACK_BASE_URL", "https://api.aviationstack.com/v1")
 AVIATIONSTACK_CACHE_TTL_SECONDS = int(os.getenv("AVIATIONSTACK_CACHE_TTL_SECONDS", "300"))
+AVIATIONSTACK_KEY_COOLDOWN_SECONDS = int(os.getenv("AVIATIONSTACK_KEY_COOLDOWN_SECONDS", "1800"))
 
 DEFAULT_UAE_DEPARTURE_AIRPORTS = ("DXB", "DWC", "AUH", "SHJ")
 
 _flight_cache: dict[tuple[str, int, str | None], dict] = {}
 _flight_cache_lock = asyncio.Lock()
+_api_key_rotation_lock = asyncio.Lock()
+_api_key_cursor = 0
+_api_key_cooldowns: dict[str, datetime] = {}
 
 
 class AviationstackError(RuntimeError):
     pass
+
+
+def _load_api_keys() -> list[str]:
+    raw_keys = os.getenv("AVIATIONSTACK_API_KEYS", "").strip()
+    keys = [key.strip() for key in raw_keys.split(",") if key.strip()]
+
+    legacy_key = os.getenv("AVIATIONSTACK_API_KEY", "").strip()
+    if legacy_key and legacy_key not in keys:
+        keys.insert(0, legacy_key)
+
+    return keys
+
+
+def _is_retryable_key_error(error: dict) -> bool:
+    message = ((error.get("message") or "") + " " + (error.get("type") or "")).lower()
+    retry_markers = (
+        "rate limit",
+        "quota",
+        "usage limit",
+        "too many requests",
+        "access restricted",
+        "monthly",
+        "limit reached",
+        "invalid_access_key",
+        "inactive_user",
+    )
+    return any(marker in message for marker in retry_markers)
+
+
+async def _get_candidate_api_keys() -> list[str]:
+    keys = _load_api_keys()
+    if not keys:
+        raise AviationstackError("AVIATIONSTACK_API_KEY or AVIATIONSTACK_API_KEYS is not configured.")
+
+    now = datetime.now(timezone.utc)
+    async with _api_key_rotation_lock:
+        eligible = [
+            key for key in keys
+            if _api_key_cooldowns.get(key, datetime.min.replace(tzinfo=timezone.utc)) <= now
+        ]
+        if not eligible:
+            _api_key_cooldowns.clear()
+            eligible = keys[:]
+
+        global _api_key_cursor
+        start = _api_key_cursor % len(eligible)
+        ordered = eligible[start:] + eligible[:start]
+        _api_key_cursor = (_api_key_cursor + 1) % len(eligible)
+        return ordered
+
+
+async def _mark_key_cooldown(api_key: str) -> None:
+    async with _api_key_rotation_lock:
+        _api_key_cooldowns[api_key] = datetime.now(timezone.utc) + timedelta(
+            seconds=AVIATIONSTACK_KEY_COOLDOWN_SECONDS
+        )
 
 
 def _to_iso8601(value: str | None) -> str | None:
@@ -104,9 +163,6 @@ async def fetch_departures_for_airport(
     limit: int = 10,
     flight_status: str | None = None,
 ) -> list[dict]:
-    if not AVIATIONSTACK_API_KEY:
-        raise AviationstackError("AVIATIONSTACK_API_KEY is not configured.")
-
     cache_key = (departure_airport_code, limit, flight_status)
     now = datetime.now(timezone.utc)
 
@@ -115,28 +171,40 @@ async def fetch_departures_for_airport(
         if cached and cached["expires_at"] > now:
             return cached["data"]
 
-    params = {
-        "access_key": AVIATIONSTACK_API_KEY,
-        "dep_iata": departure_airport_code,
-        "limit": limit,
-    }
-    if flight_status:
-        params["flight_status"] = flight_status
+    normalized_flights: list[dict] | None = None
+    last_error: str | None = None
+    candidate_keys = await _get_candidate_api_keys()
 
     async with httpx.AsyncClient(timeout=30) as client:
-        response = await client.get(f"{AVIATIONSTACK_BASE_URL}/flights", params=params)
-        response.raise_for_status()
-        payload = response.json()
+        for api_key in candidate_keys:
+            params = {
+                "access_key": api_key,
+                "dep_iata": departure_airport_code,
+                "limit": limit,
+            }
+            if flight_status:
+                params["flight_status"] = flight_status
 
-    error = payload.get("error")
-    if error:
-        message = error.get("message") or error.get("type") or "Aviationstack request failed."
-        raise AviationstackError(message)
+            response = await client.get(f"{AVIATIONSTACK_BASE_URL}/flights", params=params)
+            response.raise_for_status()
+            payload = response.json()
 
-    normalized_flights = [
-        normalize_aviationstack_flight(item, departure_airport_code)
-        for item in payload.get("data", [])
-    ]
+            error = payload.get("error")
+            if error:
+                last_error = error.get("message") or error.get("type") or "Aviationstack request failed."
+                if len(candidate_keys) > 1 and _is_retryable_key_error(error):
+                    await _mark_key_cooldown(api_key)
+                    continue
+                raise AviationstackError(last_error)
+
+            normalized_flights = [
+                normalize_aviationstack_flight(item, departure_airport_code)
+                for item in payload.get("data", [])
+            ]
+            break
+
+    if normalized_flights is None:
+        raise AviationstackError(last_error or "All Aviationstack API keys failed.")
 
     fetched_at = datetime.now(timezone.utc)
     async with _flight_cache_lock:
