@@ -209,7 +209,7 @@ def normalize_aviationstack_flight(item: dict, departure_airport_code: str) -> d
 async def fetch_departures_for_airport(
     departure_airport_code: str,
     *,
-    limit: int = 25,
+    limit: int = 50,
     flight_status: str | None = None,
 ) -> list[dict]:
     cache_key = (departure_airport_code, limit, flight_status)
@@ -268,7 +268,7 @@ async def fetch_departures_for_airport(
 async def fetch_uae_departures(
     departure_airport_codes: Iterable[str] | None = None,
     *,
-    per_airport_limit: int = 25,
+    per_airport_limit: int = 50,
     flight_status: str | None = None,
 ) -> list[dict]:
     flights: list[dict] = []

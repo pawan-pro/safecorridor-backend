@@ -21,7 +21,7 @@ async def get_flight_status(
         default=",".join(DEFAULT_UAE_DEPARTURE_AIRPORTS),
         description="Comma-separated UAE departure airport IATA codes, e.g. DXB,AUH,SHJ",
     ),
-    per_airport_limit: int = Query(default=25, ge=1, le=25),
+    per_airport_limit: int = Query(default=50, ge=1, le=50),
     flight_status: Optional[str] = Query(default=None),
     force_refresh: bool = Query(default=False),
     db: Session = Depends(get_db),

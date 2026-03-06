@@ -16,7 +16,7 @@ DEFAULT_FLIGHT_REFRESH_AIRPORTS = tuple(
     for code in os.getenv("FLIGHT_SNAPSHOT_AIRPORTS", ",".join(DEFAULT_UAE_DEPARTURE_AIRPORTS)).split(",")
     if code.strip()
 )
-DEFAULT_FLIGHT_REFRESH_LIMIT = int(os.getenv("FLIGHT_SNAPSHOT_PER_AIRPORT_LIMIT", "25"))
+DEFAULT_FLIGHT_REFRESH_LIMIT = int(os.getenv("FLIGHT_SNAPSHOT_PER_AIRPORT_LIMIT", "50"))
 
 
 def _sort_flights(flights: list[dict]) -> list[dict]:
