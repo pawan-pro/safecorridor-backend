@@ -2,8 +2,13 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine
-from .routers import airports, routes, advisories, admin, official_updates, live_agent, flights
+from .routers import airports, routes, advisories, admin, official_updates, flights
 from .db_migrations import ensure_airport_columns
+
+try:
+    from .routers import live_agent
+except ImportError:
+    live_agent = None
 
 Base.metadata.create_all(bind=engine)
 ensure_airport_columns()
@@ -31,8 +36,9 @@ app.include_router(routes.router, prefix="/api/routes", tags=["Routes"])
 app.include_router(advisories.router, prefix="/api/advisories", tags=["Advisories"])
 app.include_router(official_updates.router, prefix="/api/official-updates", tags=["Official Updates"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
-app.include_router(live_agent.router, prefix="/api/live-agent", tags=["Live Agent"])
 app.include_router(flights.router, prefix="/api/flights", tags=["Flights"])
+if live_agent is not None:
+    app.include_router(live_agent.router, prefix="/api/live-agent", tags=["Live Agent"])
 
 @app.get("/api/health")
 def read_root():
